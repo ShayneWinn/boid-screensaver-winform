@@ -28,6 +28,7 @@ namespace BoidScreensaver {
         private Point mouseLocation;
         private Random rand = new Random();
         bool previewMode = false;
+        private Graphics graphics;
 
 
         public ScreenSaverForm() {
@@ -37,6 +38,7 @@ namespace BoidScreensaver {
         public ScreenSaverForm(Rectangle Bounds) {
             InitializeComponent();
             this.Bounds = Bounds;
+            this.graphics = this.CreateGraphics();
         }
 
         public ScreenSaverForm(IntPtr PreviewWndHandle) {
@@ -112,8 +114,14 @@ namespace BoidScreensaver {
 
         private void moveTimer_Tick(object sender, EventArgs e) {
             // Move text to new location
-            textLabel.Left = rand.Next(Math.Max(1, Bounds.Width - textLabel.Width));
-            textLabel.Top = rand.Next(Math.Max(1, Bounds.Height - textLabel.Height));
+            Point oldPoint = new Point(textLabel.Left, textLabel.Top);
+            Point newPoint = new Point(rand.Next(Math.Max(1, Bounds.Width - textLabel.Width)), rand.Next(Math.Max(1, Bounds.Height - textLabel.Height)));
+            textLabel.Left = newPoint.X;
+            textLabel.Top = newPoint.Y;
+
+            Pen pen = new Pen(Color.White);
+            this.graphics.Clear(Color.Black);
+            this.graphics.DrawLine(pen, oldPoint, newPoint);
         }
     }
 }
