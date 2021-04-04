@@ -7,35 +7,30 @@ using System.Threading.Tasks;
 
 namespace BoidScreensaver {
     class Boid {
-        private Point position;
-        private float rotation;
+        public double x { get; private set; }
+        public double y { get; private set; }
+        public double angle { get; private set; }
 
         public Boid() {
-            position = new Point(0, 0);
-            rotation = 0f;
+            x = 0f;
+            y = 0f;
+            angle = 0f;
         }
 
-        public Boid(Point position) {
-            this.position = new Point(position.X, position.Y);
-            rotation = 0f;
+        public Boid(double x, double y, double angle) {
+            this.x = x;
+            this.y = y;
+            this.angle = angle;
         }
 
-        public Boid(Point position, float rotation) {
-            this.position = new Point(position.X, position.Y);
-            this.rotation = rotation;
+        public void move(double x, double y) {
+            this.x += x;
+            this.y += y;
         }
 
-        public float getRotation() {
-            return rotation;
-        }
-
-        public Point getPosition() {
-            return position;
-        }
-
-        public void move(int x, int y) {
-            position.X = position.X + x;
-            position.Y = position.Y + y;
+        public void rotate(double angle) {
+            this.angle += angle;
+            this.angle %= Math.PI * 2;
         }
     }
 }
