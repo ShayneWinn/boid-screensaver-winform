@@ -145,6 +145,7 @@ namespace BoidScreensaver {
 
         private void UpdateBoid(Boid boid) {
             if (boid != null) {
+                Flock(boid, 75, 0.03f);
                 // move forward
                 int xoff = (int)(Math.Cos(boid.angle) * 15);
                 int yoff = (int)(Math.Sin(boid.angle) * 15);
@@ -169,6 +170,20 @@ namespace BoidScreensaver {
 
         }
 
+        private void Flock (Boid boid, double distance, double power) {
+            // Get all neighbors that are within distance
+            var neighbors = boids.Where(x => (Math.Pow((x.x - boid.x), 2) + Math.Pow((x.y - boid.y), 2)) < distance * distance);
+            // Average their locations
+            double averageX = neighbors.Sum(x => x.x) / neighbors.Count();
+            double averageY = neighbors.Sum(x => x.y) / neighbors.Count();
+            // Calculate the offsets
+            double centerOffsetX = averageX - boid.x;
+            double centerOffsetY = averageY - boid.y;
+            // find angle toward center
+            double angle = Math.Atan2(centerOffsetY, centerOffsetX);
+
+            boid.rotate(angle * power);
+        }
         private void DrawBoid(Boid boid) {
             if(boid != null) {
                 double xoff = Math.Cos(boid.angle) * 20;
