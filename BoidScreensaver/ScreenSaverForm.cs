@@ -25,6 +25,7 @@ namespace BoidScreensaver {
         static extern bool GetClientRect(IntPtr hWnd, out Rectangle lpRect);
 
 
+        // Attributes
         private Point mouseLocation;
         private Random rand = new Random();
         bool previewMode = false;
@@ -33,17 +34,20 @@ namespace BoidScreensaver {
         private Bitmap bitmap;
 
 
-        public ScreenSaverForm() {
+
+        // Constructors
+
+        public ScreenSaverForm() { // basic
             InitializeComponent();
         }
 
-        public ScreenSaverForm(Rectangle Bounds) {
+        public ScreenSaverForm(Rectangle Bounds) { // given screen size
             InitializeComponent();
             this.Bounds = Bounds;
             graphics = CreateGraphics();
         }
 
-        public ScreenSaverForm(IntPtr PreviewWndHandle) {
+        public ScreenSaverForm(IntPtr PreviewWndHandle) { // given parent window (preview)
             InitializeComponent();
 
             // Set the preview window as the parent of this window
@@ -92,7 +96,7 @@ namespace BoidScreensaver {
 
             boids = new List<Boid>();
             for(int i = 0; i < 100; i++) {
-                boids.Add(new Boid(new Point(rand.Next(Math.Max(1, Bounds.Width)), rand.Next(Math.Max(1, Bounds.Height))), (float)rand.Next(0, 100) / 100f * (float)Math.PI));               
+                boids.Add(new Boid(rand.Next(Math.Max(1, Bounds.Width)), rand.Next(Math.Max(1, Bounds.Height)), (float)rand.Next(0, 100) / 100f * (float)Math.PI));               
             }
         }
 
@@ -142,23 +146,23 @@ namespace BoidScreensaver {
         private void UpdateBoid(Boid boid) {
             if (boid != null) {
                 // move forward
-                int xoff = (int)(Math.Cos(boid.getRotation()) * 20);
-                int yoff = (int)(Math.Sin(boid.getRotation()) * 20);
+                int xoff = (int)(Math.Cos(boid.angle) * 15);
+                int yoff = (int)(Math.Sin(boid.angle) * 15);
 
                 boid.move(xoff, yoff);
 
 
                 // wrap around screen
-                if(boid.getPosition().X > Bounds.Width) {
+                if(boid.x > Bounds.Width) {
                     boid.move(-Bounds.Width, 0);
                 }
-                if(boid.getPosition().X < 0) {
+                if(boid.x < 0) {
                     boid.move(Bounds.Width, 0);
                 }
-                if (boid.getPosition().Y > Bounds.Height) {
+                if (boid.y > Bounds.Height) {
                     boid.move(0, -Bounds.Height);
                 }
-                if (boid.getPosition().Y < 0) {
+                if (boid.y < 0) {
                     boid.move(0, Bounds.Height);
                 }
             }
@@ -167,34 +171,22 @@ namespace BoidScreensaver {
 
         private void DrawBoid(Boid boid) {
             if(boid != null) {
-                int xoff = (int)(Math.Cos(boid.getRotation()) * 20);
-                int yoff = (int)(Math.Sin(boid.getRotation()) * 20);
+                double xoff = Math.Cos(boid.angle) * 20;
+                double yoff = Math.Sin(boid.angle) * 20;
 
-                drawLine(boid.getPosition(), new Point(boid.getPosition().X + xoff, boid.getPosition().Y + yoff), Color.White);
+                drawLine(new Point((int)boid.x, (int)boid.y), new Point((int)(boid.x + xoff), (int)(boid.y + yoff)), Color.White);
             }
         }
 
 
+
         // Drawing functions
+
         private void drawLine(Point a, Point b, Color color) {
             int x0 = a.X;
             int y0 = a.Y;
             int x1 = b.X;
             int y1 = b.Y;
-
-            if (x0 < 0 || x0 > Bounds.Width) {
-                return;
-            }
-            if (x1 < 0 || x1 > Bounds.Width) {
-                return;
-            }
-            if (y0 < 0 || y0 > Bounds.Height) {
-                return;
-            }
-            if (y1 < 0 || y1 > Bounds.Height) {
-                return;
-            }
-
 
             int deltaX = Math.Abs(x1 - x0);
             int sx = x0 < x1 ? 1 : -1;
@@ -203,7 +195,13 @@ namespace BoidScreensaver {
             float error = deltaX + deltaY;
 
             while (true) {
-                bitmap.SetPixel(x0 % Bounds.Width, y0 % Bounds.Height, color);
+                if(x0 < 0 || y0 < 0) {
+                    break;
+                }
+
+                if(!(x0 > Bounds.Width || y0 > Bounds.Height))
+                    bitmap.SetPixel(x0 % Bounds.Width, y0 % Bounds.Height, color);
+
                 if(x0 == x1 && y0 == y1)
                     break;
                 float e2 = 2 * error;
