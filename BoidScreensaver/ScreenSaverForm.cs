@@ -29,6 +29,8 @@ namespace BoidScreensaver {
         private Random rand = new Random();
         bool previewMode = false;
         private Graphics graphics;
+        private List<Boid> boids;
+        private Bitmap bitmap;
 
 
         public ScreenSaverForm() {
@@ -38,7 +40,7 @@ namespace BoidScreensaver {
         public ScreenSaverForm(Rectangle Bounds) {
             InitializeComponent();
             this.Bounds = Bounds;
-            this.graphics = this.CreateGraphics();
+            graphics = CreateGraphics();
         }
 
         public ScreenSaverForm(IntPtr PreviewWndHandle) {
@@ -57,9 +59,6 @@ namespace BoidScreensaver {
             Size = ParentRect.Size;
             Location = new Point(0, 0);
 
-            // Make text smaller
-            textLabel.Font = new Font("Arial", 6);
-
             previewMode = true;
         }
 
@@ -71,18 +70,30 @@ namespace BoidScreensaver {
             // Grab the settings from the registry
             RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Boid_ScreenSaver");
             if(key == null) {
-                textLabel.Text = "C# Screen Saver";
+                //textLabel.Text = "C# Screen Saver";
             }
             else {
-                textLabel.Text = (string)key.GetValue("text");
+                //textLabel.Text = (string)key.GetValue("text");
             }
 
-            Cursor.Hide();
-            TopMost = true;
+            // create bitmap
+            bitmap = new Bitmap(Bounds.Width, Bounds.Height);
 
-            moveTimer.Interval = 3000;
+            Cursor.Hide();
+            //TopMost = true;
+
+            moveTimer.Interval = 30;
             moveTimer.Tick += new EventHandler(moveTimer_Tick);
             moveTimer.Start();
+
+            Stage.Width = Bounds.Width;
+            Stage.Height = Bounds.Height;
+            Stage.Location = new Point(0, 0);
+
+            boids = new List<Boid>();
+            for(int i = 0; i < 100; i++) {
+                boids.Add(new Boid(new Point(rand.Next(Math.Max(1, Bounds.Width)), rand.Next(Math.Max(1, Bounds.Height))), (float)rand.Next(0, 100) / 100f * (float)Math.PI));               
+            }
         }
 
 
@@ -112,16 +123,106 @@ namespace BoidScreensaver {
                 Application.Exit();
         }
 
-        private void moveTimer_Tick(object sender, EventArgs e) {
-            // Move text to new location
-            Point oldPoint = new Point(textLabel.Left, textLabel.Top);
-            Point newPoint = new Point(rand.Next(Math.Max(1, Bounds.Width - textLabel.Width)), rand.Next(Math.Max(1, Bounds.Height - textLabel.Height)));
-            textLabel.Left = newPoint.X;
-            textLabel.Top = newPoint.Y;
 
-            Pen pen = new Pen(Color.White);
-            this.graphics.Clear(Color.Black);
-            this.graphics.DrawLine(pen, oldPoint, newPoint);
+        
+        // Main clock
+
+        private void moveTimer_Tick(object sender, EventArgs e) {
+            bitmap.Dispose();
+            bitmap = new Bitmap(Bounds.Width, Bounds.Height);
+
+            foreach(Boid boid in boids) {
+                DrawBoid(boid);
+                UpdateBoid(boid);
+            }
+
+            Stage.Image = bitmap;
+        }
+
+        private void UpdateBoid(Boid boid) {
+            if (boid != null) {
+                // move forward
+                int xoff = (int)(Math.Cos(boid.getRotation()) * 20);
+                int yoff = (int)(Math.Sin(boid.getRotation()) * 20);
+
+                boid.move(xoff, yoff);
+
+
+                // wrap around screen
+                if(boid.getPosition().X > Bounds.Width) {
+                    boid.move(-Bounds.Width, 0);
+                }
+                if(boid.getPosition().X < 0) {
+                    boid.move(Bounds.Width, 0);
+                }
+                if (boid.getPosition().Y > Bounds.Height) {
+                    boid.move(0, -Bounds.Height);
+                }
+                if (boid.getPosition().Y < 0) {
+                    boid.move(0, Bounds.Height);
+                }
+            }
+
+        }
+
+        private void DrawBoid(Boid boid) {
+            if(boid != null) {
+                int xoff = (int)(Math.Cos(boid.getRotation()) * 20);
+                int yoff = (int)(Math.Sin(boid.getRotation()) * 20);
+
+                drawLine(boid.getPosition(), new Point(boid.getPosition().X + xoff, boid.getPosition().Y + yoff), Color.White);
+            }
+        }
+
+
+        // Drawing functions
+        private void drawLine(Point a, Point b, Color color) {
+            int x0 = a.X;
+            int y0 = a.Y;
+            int x1 = b.X;
+            int y1 = b.Y;
+
+            if (x0 < 0 || x0 > Bounds.Width) {
+                return;
+            }
+            if (x1 < 0 || x1 > Bounds.Width) {
+                return;
+            }
+            if (y0 < 0 || y0 > Bounds.Height) {
+                return;
+            }
+            if (y1 < 0 || y1 > Bounds.Height) {
+                return;
+            }
+
+
+            int deltaX = Math.Abs(x1 - x0);
+            int sx = x0 < x1 ? 1 : -1;
+            int deltaY = -Math.Abs(y1 - y0);
+            int sy = y0 < y1 ? 1 : -1;
+            float error = deltaX + deltaY;
+
+            while (true) {
+                bitmap.SetPixel(x0 % Bounds.Width, y0 % Bounds.Height, color);
+                if(x0 == x1 && y0 == y1)
+                    break;
+                float e2 = 2 * error;
+                if (e2 >= deltaY) {
+                    error += deltaY;
+                    x0 += sx;
+                }
+                if (e2 <= deltaX) {
+                    error += deltaX;
+                    y0 += sy;
+                }
+            }
+
+            Stage.Image = bitmap;
+        }
+
+
+        private void drawTriangle(Point a, Point b, Point c, Color color) {
+            // TODO
         }
     }
 }
