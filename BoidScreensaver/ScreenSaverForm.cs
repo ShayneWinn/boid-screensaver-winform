@@ -147,6 +147,8 @@ namespace BoidScreensaver {
             if (boid != null) {
                 Flock(boid, 75, 0.03f);
                 Align(boid, 75, 0.1f);
+                Avoid(boid, 35,  0.04f);
+
                 // move forward
                 int xoff = (int)(Math.Cos(boid.angle) * 15);
                 int yoff = (int)(Math.Sin(boid.angle) * 15);
@@ -185,6 +187,7 @@ namespace BoidScreensaver {
 
             boid.rotate(angle * power);
         }
+
         private void Align(Boid boid, double distance, double power) {
             // Get all neighbors that are within distance
             var neighbors = boids.Where(x => (Math.Pow((x.x - boid.x), 2) + Math.Pow((x.y - boid.y), 2)) < distance * distance);
@@ -195,6 +198,23 @@ namespace BoidScreensaver {
 
             boid.rotate(angleDiff * power);
         }
+
+        private void Avoid(Boid boid, double distance, double power) {
+            // Get all neighbors that are within distance
+            var neighbors = boids.Where(x => (Math.Pow((x.x - boid.x), 2) + Math.Pow((x.y - boid.y), 2)) < distance * distance);
+            double sumClosenessX = 0f;
+            double sumClosenessY = 0f;
+            foreach(Boid neighbor in neighbors) {
+                double closeness = distance - Math.Sqrt((Math.Pow((neighbor.x - boid.x), 2) + Math.Pow((neighbor.y - boid.y), 2)));
+                sumClosenessX += (boid.x - neighbor.x) * closeness;
+                sumClosenessY += (boid.y - neighbor.y) * closeness;
+            }
+            // find angle toward center
+            double angle = Math.Atan2(sumClosenessX, sumClosenessY);
+
+            boid.rotate(angle * power);
+        }
+
         private void DrawBoid(Boid boid) {
             if(boid != null) {
                 double xoff = Math.Cos(boid.angle) * 20;
