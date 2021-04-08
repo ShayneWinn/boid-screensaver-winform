@@ -78,7 +78,7 @@ namespace BoidScreensaver {
         public ScreenSaverForm() { // basic
             InitializeComponent();
             Cursor.Hide();
-            TopMost = true;
+            //TopMost = true;
         }
 
         public ScreenSaverForm(Rectangle Bounds) { // given screen size
@@ -86,7 +86,7 @@ namespace BoidScreensaver {
             this.Bounds = Bounds;
             graphics = CreateGraphics();
             Cursor.Hide();
-            TopMost = true;
+            //TopMost = true;
         }
 
         public ScreenSaverForm(IntPtr PreviewWndHandle) { // given parent window (preview)
@@ -130,7 +130,7 @@ namespace BoidScreensaver {
             smallRadius = largeRadius / 2;
             flockPower = 0.01 * (settings.FlockStrength / 100);
             alignPower = 0.14 * (settings.AlignStrength / 100);
-            avoidPower = 0.004 * (settings.AvoidStrength / 100);
+            avoidPower = 0.001 * (settings.AvoidStrength / 100);
 
             // Create bitmap
             bitmap = new Bitmap(Bounds.Width, Bounds.Height);
@@ -148,7 +148,7 @@ namespace BoidScreensaver {
             // Create Boids
             boids = new List<Boid>();
             for(int i = 0; i < 100; i++) {
-                boids.Add(new Boid(rand.Next(Math.Max(1, Bounds.Width)), rand.Next(Math.Max(1, Bounds.Height)), (double)rand.Next(0, 100) / 100f * 20 - 5, (double)rand.Next(0, 100) / 100f * 20 - 5));               
+                boids.Add(new Boid(rand.Next(Math.Max(1, Bounds.Width)), rand.Next(Math.Max(1, Bounds.Height)), (double)rand.Next(-100, 100) / 100f * maxSpeed, (double)rand.Next(-100, 100) / 100f * maxSpeed));               
             }
         }
 
@@ -197,10 +197,55 @@ namespace BoidScreensaver {
 
         private void UpdateBoid(Boid boid) {
             if (boid != null) {
-                // Calculate the rules
-                if(settings.Flock) Flock(boid, largeRadius, flockPower);
-                if(settings.Align) Align(boid, largeRadius, alignPower);
-                if(settings.Avoid) Avoid(boid, smallRadius, avoidPower);
+                // OPTIMIZATION:
+                // grab neighbors
+                var neighbors = boids.Where(x => boid.GetDistance(x) < largeRadius && x != boid);
+                if (neighbors.Count() > 0) {
+                    // average EVERYTHING
+                    double averageX = 0; double averageY = 0;           // Flock
+                    double averageXvel = 0; double averageYvel = 0;     // Align
+                    double sumClosenessX = 0; double sumClosenessY = 0; // Avoid
+
+                    // go through every neighbor
+                    foreach (Boid neighbor in neighbors) {
+                        // Flock
+                        averageX += neighbor.X;
+                        averageY += neighbor.Y;
+
+                        // Align
+                        averageXvel += neighbor.Xvel;
+                        averageYvel += neighbor.Yvel;
+
+                        // Avoid
+                        if (boid.GetDistance(neighbor) < smallRadius) { 
+                            double closeness = largeRadius - boid.GetDistance(neighbor);
+                            sumClosenessX += (boid.X - neighbor.X) * closeness;
+                            sumClosenessY += (boid.Y - neighbor.Y) * closeness;
+                        }
+                    }
+
+                    // Calculate the rules
+                    if (settings.Flock) {
+                        averageX = averageX / neighbors.Count();
+                        averageY = averageY / neighbors.Count();
+                        double centerOffsetX = averageX - boid.X;
+                        double centerOffsetY = averageY - boid.Y;
+                        boid.Xvel += centerOffsetX * flockPower; boid.Yvel += centerOffsetY * flockPower;
+                    }
+
+                    if (settings.Align) {
+                        averageXvel = averageXvel / neighbors.Count();
+                        averageYvel = averageYvel / neighbors.Count();
+                        double deltaXvel = averageXvel - boid.Xvel;
+                        double deltaYvel = averageYvel - boid.Yvel;
+                        boid.Xvel += deltaXvel * alignPower; boid.Yvel += deltaYvel * alignPower;
+                    }
+
+                    if (settings.Avoid) {
+                        boid.Xvel += sumClosenessX * avoidPower; boid.Yvel += sumClosenessY * avoidPower;
+                    }
+                }
+
 
                 if (settings.AvoidWalls)
                     AvoidWalls(boid);
@@ -256,8 +301,8 @@ namespace BoidScreensaver {
 
         private void AvoidWalls(Boid boid) {
             // pad is 5% of the smalles dimention
-            double pad = 0.05 * Math.Min(Bounds.Width, Bounds.Height);
-            double power = pad / 35;
+            double pad = 0.1 * Math.Min(Bounds.Width, Bounds.Height);
+            double power = pad / 100;
 
             if(boid.X < pad) { // Off the left side of the screen
                 boid.Xvel += power;

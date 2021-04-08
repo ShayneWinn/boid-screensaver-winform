@@ -43,11 +43,15 @@ namespace BoidScreensaver {
         }
 
         public double GetDistance(Boid other) {
-            return Math.Sqrt(((other.X + X) * (other.X + X)) + ((other.Y + Y) * (other.Y + Y)));
+            return Math.Sqrt(((other.X - X) * (other.X - X)) + ((other.Y - Y) * (other.Y - Y)));
         }
 
         public double GetAngle() {
             return Math.Atan2(Yvel, Xvel);
+        }
+
+        public Point GetPoint() {
+            return new Point((int)X, (int)Y);
         }
     }
 }
