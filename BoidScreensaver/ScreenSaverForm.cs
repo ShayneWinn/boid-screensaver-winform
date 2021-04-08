@@ -38,7 +38,6 @@ namespace BoidScreensaver {
         static extern bool GetClientRect(IntPtr hWnd, out Rectangle lpRect);
 
 
-
         // Attributes
 
         private Point mouseLocation;
@@ -59,6 +58,10 @@ namespace BoidScreensaver {
         private double avoidPower;
 
 
+        /// <summary>
+        /// Static function used to get a new Settings full of default values
+        /// </summary>
+        /// <returns> ScreenSaverForm.Settings </returns>
         public static Settings DEFAULT_SETTINGS() {
             Settings settings;
             settings.Flock = true;
@@ -73,14 +76,24 @@ namespace BoidScreensaver {
         }
 
 
-        // Constructors / Modifiers
+        //  /==========================\
+        // || Constructors / Modifiers ||
+        //  \==========================/
 
+
+        /// <summary>
+        /// Used to construct a simple ScreenSaverForm
+        /// </summary>
         public ScreenSaverForm() { // basic
             InitializeComponent();
             Cursor.Hide();
             //TopMost = true;
         }
 
+        /// <summary>
+        /// Used to construct a ScreenSaver within a given Bounds
+        /// </summary>
+        /// <param name="Bounds"> Rectangle containing width and height maximums </param>
         public ScreenSaverForm(Rectangle Bounds) { // given screen size
             InitializeComponent();
             this.Bounds = Bounds;
@@ -89,6 +102,10 @@ namespace BoidScreensaver {
             //TopMost = true;
         }
 
+        /// <summary>
+        /// Used to construct a ScreenSaverForm that has a parent window. Used in settings and preview
+        /// </summary>
+        /// <param name="PreviewWndHandle"></param>
         public ScreenSaverForm(IntPtr PreviewWndHandle) { // given parent window (preview)
             InitializeComponent();
 
@@ -108,6 +125,10 @@ namespace BoidScreensaver {
             previewMode = true;
         }
 
+        /// <summary>
+        /// Changes the current active settings
+        /// </summary>
+        /// <param name="settings"></param>
         public void ChangeSettings(Settings settings) {
             this.settings = settings;
             flockPower = 0.01 * (settings.FlockStrength / 100);
@@ -116,9 +137,14 @@ namespace BoidScreensaver {
         }
 
 
+        //  /==================\
+        // || Startup Handeler ||
+        //  \==================/
 
-        // Start up Handler
 
+        /// <summary>
+        /// Called just after the window is created, Calculates settings and creates boids
+        /// </summary>
         private void ScreenSaverForm_Load(object sender, EventArgs e) {
             settings = SettingsForm.LoadSettings();
 
@@ -153,9 +179,14 @@ namespace BoidScreensaver {
         }
 
 
+        //  /=================\
+        // || Event Handelers ||
+        //  \=================/
 
-        // Event Handlers
 
+        /// <summary>
+        /// Called when a mouse moves on the screen. Closes the Application
+        /// </summary>
         private void ScreenSaverForm_MouseMove(object sender, MouseEventArgs e) {
             if (!mouseLocation.IsEmpty) {
                 // Terminate if mouse is moved a significant distance
@@ -169,20 +200,31 @@ namespace BoidScreensaver {
             mouseLocation = e.Location;
         }
 
+        /// <summary>
+        /// Called when a mouse button is clicked. Closes the Application
+        /// </summary>
         private void ScreenSaverForm_MouseClick(object sender, MouseEventArgs e) {
             if (!previewMode)
                 Application.Exit();
         }
 
+        /// <summary>
+        /// Called when a key is pressed. Closes the applicaation
+        /// </summary>
         private void ScreenSaverForm_KeyPress(object sender, KeyPressEventArgs e) {
             if (!previewMode)
                 Application.Exit();
         }
 
 
-        
-        // Main clock
+        //  /===================\
+        // || Main Clock Events ||
+        //  \===================/
 
+
+        /// <summary>
+        /// Called every 30 miliseconds. Clears the old bitmap and updates all boids
+        /// </summary>
         private void moveTimer_Tick(object sender, EventArgs e) {
             bitmap.Dispose();
             bitmap = new Bitmap(Bounds.Width, Bounds.Height);
@@ -195,6 +237,10 @@ namespace BoidScreensaver {
             Stage.Image = bitmap;
         }
 
+        /// <summary>
+        /// Updates a given boid
+        /// </summary>
+        /// <param name="boid"> Boid to update and calculate movement for </param>
         private void UpdateBoid(Boid boid) {
             if (boid != null) {
                 // OPTIMIZATION:
@@ -259,6 +305,13 @@ namespace BoidScreensaver {
 
         }
 
+        /// <summary>
+        /// Applies the flocking mechanic to a given boid
+        ///     finds all boids in a given distance and moves towards the center of them
+        /// </summary>
+        /// <param name="boid"> Boid to modify </param>
+        /// <param name="distance"> The distance to search </param>
+        /// <param name="power"> Used to lessen the effects and balance the behaviours </param>
         private void Flock (Boid boid, double distance, double power) {
             // Get all neighbors that are within distance
             var neighbors = boids.Where(x => (Math.Pow((x.X - boid.X), 2) + Math.Pow((x.Y - boid.Y), 2)) < distance * distance);
@@ -272,6 +325,13 @@ namespace BoidScreensaver {
             boid.Xvel += centerOffsetX * power; boid.Yvel += centerOffsetY * power;
         }
 
+        /// <summary>
+        /// Applies the aligning mechanic to a given boid
+        ///     finds all boids in a given distance and tries to move in the same distance as the average
+        /// </summary>
+        /// <param name="boid"> Boid to modify </param>
+        /// <param name="distance"> The distance to search </param>
+        /// <param name="power"> Used to lessen the effects and balance the behaviours </param>
         private void Align(Boid boid, double distance, double power) {
             // Get all neighbors that are within distance
             var neighbors = boids.Where(x => (Math.Pow((x.X - boid.X), 2) + Math.Pow((x.Y - boid.Y), 2)) < distance * distance);
@@ -285,6 +345,13 @@ namespace BoidScreensaver {
             boid.Xvel += deltaXvel * power; boid.Yvel += deltaYvel * power;
         }
 
+        /// <summary>
+        /// Applies the avoiding mechanic to a given boid
+        ///     finds all boids in a given distance and moves away from them based on how close they are
+        /// </summary>
+        /// <param name="boid"> Boid to modify </param>
+        /// <param name="distance"> The distance to search </param>
+        /// <param name="power"> Used to lessen the effects and balance the behaviours </param>
         private void Avoid(Boid boid, double distance, double power) {
             // Get all neighbors that are within distance
             var neighbors = boids.Where(x => (Math.Pow((x.X - boid.X), 2) + Math.Pow((x.Y - boid.Y), 2)) < distance * distance);
@@ -299,6 +366,10 @@ namespace BoidScreensaver {
             boid.Xvel += sumClosenessX * power; boid.Yvel += sumClosenessY * power;
         }
 
+        /// <summary>
+        /// Changes the velocity of a boid to keep it within the bounds
+        /// </summary>
+        /// <param name="boid"> Boid to modify </param>
         private void AvoidWalls(Boid boid) {
             // pad is 5% of the smalles dimention
             double pad = 0.1 * Math.Min(Bounds.Width, Bounds.Height);
@@ -318,6 +389,10 @@ namespace BoidScreensaver {
             }
         }
 
+        /// <summary>
+        /// Teleports a boid located outside of the bounds to the opposite side of the world
+        /// </summary>
+        /// <param name="boid"> Boid to modify </param>
         private void WrapWorld(Boid boid) {
             if(boid.X < 0) {
                 boid.X += Bounds.Width;
@@ -334,6 +409,11 @@ namespace BoidScreensaver {
             }
         }
 
+        /// <summary>
+        /// Draws a given boid based on it's velocities
+        ///     Currently draws a white line a given length
+        /// </summary>
+        /// <param name="boid"> Boid to draw </param>
         private void DrawBoid(Boid boid) {
             if(boid != null) {
                 double xoff = Math.Cos(boid.GetAngle()) * boidSize;
@@ -344,9 +424,17 @@ namespace BoidScreensaver {
         }
 
 
+        //  /====================\
+        // || Graphics Functions ||
+        //  \====================/
 
-        // Drawing functions
 
+        /// <summary>
+        /// Draws a line pixel by pixel using Bresenham's line algorithm. 
+        /// </summary>
+        /// <param name="a"> starting Point </param>
+        /// <param name="b"> ending Point </param>
+        /// <param name="color"> Color to draw the line </param>
         private void drawLine(Point a, Point b, Color color) {
             int x0 = a.X;
             int y0 = a.Y;
@@ -379,11 +467,6 @@ namespace BoidScreensaver {
             }
 
             Stage.Image = bitmap;
-        }
-
-
-        private void drawTriangle(Point a, Point b, Point c, Color color) {
-            // TODO
         }
     }
 }
