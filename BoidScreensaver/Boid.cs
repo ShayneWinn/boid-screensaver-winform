@@ -7,30 +7,47 @@ using System.Threading.Tasks;
 
 namespace BoidScreensaver {
     class Boid {
-        public double x { get; private set; }
-        public double y { get; private set; }
-        public double angle { get; private set; }
+        public double X;
+        public double Y;
+        public double Xvel;
+        public double Yvel;
 
-        public Boid() {
-            x = 0f;
-            y = 0f;
-            angle = 0f;
+        public Boid(double x, double y, double Xvel, double Yvel) {
+            this.X = x;
+            this.Y = y;
+            this.Xvel = Xvel;
+            this.Yvel = Yvel;
         }
 
-        public Boid(double x, double y, double angle) {
-            this.x = x;
-            this.y = y;
-            this.angle = angle;
+        public void Move(double minSpeed, double maxSpeed) {
+            double speed = Math.Sqrt((Xvel * Xvel) + (Yvel * Yvel));
+
+            if(speed > maxSpeed) {
+                Xvel = (Xvel / speed) * maxSpeed;
+                Yvel = (Yvel / speed) * maxSpeed;
+            }
+            else if (speed < minSpeed) {
+                Xvel = (Xvel / speed) * minSpeed;
+                Yvel = (Yvel / speed) * minSpeed;
+            }
+
+            if (double.IsNaN(Xvel)) {
+                Xvel = 0;
+            }
+            if (double.IsNaN(Yvel)) {
+                Yvel = 0;
+            }
+
+            X += Xvel;
+            Y += Yvel;
         }
 
-        public void move(double x, double y) {
-            this.x += x;
-            this.y += y;
+        public double GetDistance(Boid other) {
+            return Math.Sqrt(((other.X + X) * (other.X + X)) + ((other.Y + Y) * (other.Y + Y)));
         }
 
-        public void rotate(double angle) {
-            this.angle += angle;
-            this.angle %= Math.PI * 2;
+        public double GetAngle() {
+            return Math.Atan2(Yvel, Xvel);
         }
     }
 }
