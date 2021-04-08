@@ -12,6 +12,19 @@ using Microsoft.Win32;
 
 namespace BoidScreensaver {
     public partial class ScreenSaverForm : Form {
+
+        public struct Settings {
+            public bool Flock; // Should the boids flock together?
+            public bool Align; // Should the boids align?
+            public bool Avoid; // Should the boids avoid collisions?
+
+            public bool AvoidWalls; // Should the boids avoid walls?
+
+            public double FlockStrength; // How strong is the Flocking?
+            public double AlignStrength; // How strong is the Aligning?
+            public double AvoidStrength; // How strong is the Avoiding?
+        }
+
         [DllImport("user32.dll")]
         static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
 
@@ -25,22 +38,47 @@ namespace BoidScreensaver {
         static extern bool GetClientRect(IntPtr hWnd, out Rectangle lpRect);
 
 
+
         // Attributes
+
         private Point mouseLocation;
         private Random rand = new Random();
         bool previewMode = false;
         private Graphics graphics;
         private List<Boid> boids;
         private Bitmap bitmap;
+        private Settings settings;
+
+        private double largeRadius;
+        private double smallRadius;
+        private double minSpeed;
+        private double maxSpeed;
+        private double boidSize;
+        private double flockPower;
+        private double alignPower;
+        private double avoidPower;
 
 
+        public static Settings DEFAULT_SETTINGS() {
+            Settings settings;
+            settings.Flock = true;
+            settings.Align = true;
+            settings.Avoid = true;
+            settings.AvoidWalls = true;
+            settings.FlockStrength = 50;
+            settings.AlignStrength = 50;
+            settings.AvoidStrength = 50;
 
-        // Constructors
+            return settings;
+        }
+
+
+        // Constructors / Modifiers
 
         public ScreenSaverForm() { // basic
             InitializeComponent();
             Cursor.Hide();
-            //TopMost = true;
+            TopMost = true;
         }
 
         public ScreenSaverForm(Rectangle Bounds) { // given screen size
@@ -48,7 +86,7 @@ namespace BoidScreensaver {
             this.Bounds = Bounds;
             graphics = CreateGraphics();
             Cursor.Hide();
-            //TopMost = true;
+            TopMost = true;
         }
 
         public ScreenSaverForm(IntPtr PreviewWndHandle) { // given parent window (preview)
@@ -70,31 +108,44 @@ namespace BoidScreensaver {
             previewMode = true;
         }
 
+        public void ChangeSettings(Settings settings) {
+            this.settings = settings;
+            flockPower = 0.01 * (settings.FlockStrength / 100);
+            alignPower = 0.14 * (settings.AlignStrength / 100);
+            avoidPower = 0.004 * (settings.AvoidStrength / 100);
+        }
+
 
 
         // Start up Handler
 
         private void ScreenSaverForm_Load(object sender, EventArgs e) {
-            // Grab the settings from the registry
-            RegistryKey key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Boid_ScreenSaver");
-            if(key == null) {
-                //textLabel.Text = "C# Screen Saver";
-            }
-            else {
-                //textLabel.Text = (string)key.GetValue("text");
-            }
+            settings = SettingsForm.LoadSettings();
 
-            // create bitmap
+            // Calculate other settings
+            boidSize = Math.Min(Bounds.Width, Bounds.Height) / 50;
+            minSpeed = Math.Min(Bounds.Width, Bounds.Height) / 100;
+            maxSpeed = Math.Min(Bounds.Width, Bounds.Height) / 75;
+            largeRadius = Math.Min(Bounds.Width, Bounds.Height) / 15;
+            smallRadius = largeRadius / 2;
+            flockPower = 0.01 * (settings.FlockStrength / 100);
+            alignPower = 0.14 * (settings.AlignStrength / 100);
+            avoidPower = 0.004 * (settings.AvoidStrength / 100);
+
+            // Create bitmap
             bitmap = new Bitmap(Bounds.Width, Bounds.Height);
 
+            // Set clock speed
             moveTimer.Interval = 30;
             moveTimer.Tick += new EventHandler(moveTimer_Tick);
             moveTimer.Start();
 
+            // Set bounds
             Stage.Width = Bounds.Width;
             Stage.Height = Bounds.Height;
             Stage.Location = new Point(0, 0);
 
+            // Create Boids
             boids = new List<Boid>();
             for(int i = 0; i < 100; i++) {
                 boids.Add(new Boid(rand.Next(Math.Max(1, Bounds.Width)), rand.Next(Math.Max(1, Bounds.Height)), (double)rand.Next(0, 100) / 100f * 20 - 5, (double)rand.Next(0, 100) / 100f * 20 - 5));               
@@ -147,13 +198,18 @@ namespace BoidScreensaver {
         private void UpdateBoid(Boid boid) {
             if (boid != null) {
                 // Calculate the rules
-                Flock(boid, 75, 0.005f);
-                Align(boid, 75, 0.07f);
-                Avoid(boid, 35, 0.002f);
-                AvoidWalls(boid, 1.5f);
+                if(settings.Flock) Flock(boid, largeRadius, flockPower);
+                if(settings.Align) Align(boid, largeRadius, alignPower);
+                if(settings.Avoid) Avoid(boid, smallRadius, avoidPower);
+
+                if (settings.AvoidWalls)
+                    AvoidWalls(boid);
+                else
+                    WrapWorld(boid);
+
 
                 // Move the boid
-                boid.Move(10, 15);
+                boid.Move(minSpeed, maxSpeed);
             }
 
         }
@@ -198,9 +254,10 @@ namespace BoidScreensaver {
             boid.Xvel += sumClosenessX * power; boid.Yvel += sumClosenessY * power;
         }
 
-        private void AvoidWalls(Boid boid, double power) {
+        private void AvoidWalls(Boid boid) {
             // pad is 5% of the smalles dimention
             double pad = 0.05 * Math.Min(Bounds.Width, Bounds.Height);
+            double power = pad / 35;
 
             if(boid.X < pad) { // Off the left side of the screen
                 boid.Xvel += power;
@@ -216,10 +273,26 @@ namespace BoidScreensaver {
             }
         }
 
+        private void WrapWorld(Boid boid) {
+            if(boid.X < 0) {
+                boid.X += Bounds.Width;
+            }
+            else if(boid.X > Bounds.Width) {
+                boid.X -= Bounds.Width;
+            }
+
+            if(boid.Y < 0) {
+                boid.Y += Bounds.Height;
+            }
+            else if(boid.Y > Bounds.Height) {
+                boid.Y -= Bounds.Height;
+            }
+        }
+
         private void DrawBoid(Boid boid) {
             if(boid != null) {
-                double xoff = Math.Cos(boid.GetAngle()) * 20;
-                double yoff = Math.Sin(boid.GetAngle()) * 20;
+                double xoff = Math.Cos(boid.GetAngle()) * boidSize;
+                double yoff = Math.Sin(boid.GetAngle()) * boidSize;
 
                 drawLine(new Point((int)boid.X, (int)boid.Y), new Point((int)(boid.X + xoff), (int)(boid.Y + yoff)), Color.White);
             }
