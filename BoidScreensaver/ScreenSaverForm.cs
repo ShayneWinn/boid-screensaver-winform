@@ -39,12 +39,16 @@ namespace BoidScreensaver {
 
         public ScreenSaverForm() { // basic
             InitializeComponent();
+            Cursor.Hide();
+            //TopMost = true;
         }
 
         public ScreenSaverForm(Rectangle Bounds) { // given screen size
             InitializeComponent();
             this.Bounds = Bounds;
             graphics = CreateGraphics();
+            Cursor.Hide();
+            //TopMost = true;
         }
 
         public ScreenSaverForm(IntPtr PreviewWndHandle) { // given parent window (preview)
@@ -83,9 +87,6 @@ namespace BoidScreensaver {
             // create bitmap
             bitmap = new Bitmap(Bounds.Width, Bounds.Height);
 
-            Cursor.Hide();
-            //TopMost = true;
-
             moveTimer.Interval = 30;
             moveTimer.Tick += new EventHandler(moveTimer_Tick);
             moveTimer.Start();
@@ -96,7 +97,7 @@ namespace BoidScreensaver {
 
             boids = new List<Boid>();
             for(int i = 0; i < 100; i++) {
-                boids.Add(new Boid(rand.Next(Math.Max(1, Bounds.Width)), rand.Next(Math.Max(1, Bounds.Height)), (float)rand.Next(0, 100) / 100f * (float)Math.PI));               
+                boids.Add(new Boid(rand.Next(Math.Max(1, Bounds.Width)), rand.Next(Math.Max(1, Bounds.Height)), (double)rand.Next(0, 100) / 100f * 20 - 5, (double)rand.Next(0, 100) / 100f * 20 - 5));               
             }
         }
 
@@ -145,82 +146,82 @@ namespace BoidScreensaver {
 
         private void UpdateBoid(Boid boid) {
             if (boid != null) {
-                Flock(boid, 75, 0.03f);
-                Align(boid, 75, 0.1f);
-                Avoid(boid, 35,  0.04f);
+                // Calculate the rules
+                Flock(boid, 75, 0.005f);
+                Align(boid, 75, 0.07f);
+                Avoid(boid, 35, 0.002f);
+                AvoidWalls(boid, 1.5f);
 
-                // move forward
-                int xoff = (int)(Math.Cos(boid.angle) * 15);
-                int yoff = (int)(Math.Sin(boid.angle) * 15);
-
-                boid.move(xoff, yoff);
-
-
-                // wrap around screen
-                if(boid.x > Bounds.Width) {
-                    boid.move(-Bounds.Width, 0);
-                }
-                if(boid.x < 0) {
-                    boid.move(Bounds.Width, 0);
-                }
-                if (boid.y > Bounds.Height) {
-                    boid.move(0, -Bounds.Height);
-                }
-                if (boid.y < 0) {
-                    boid.move(0, Bounds.Height);
-                }
+                // Move the boid
+                boid.Move(10, 15);
             }
 
         }
 
         private void Flock (Boid boid, double distance, double power) {
             // Get all neighbors that are within distance
-            var neighbors = boids.Where(x => (Math.Pow((x.x - boid.x), 2) + Math.Pow((x.y - boid.y), 2)) < distance * distance);
+            var neighbors = boids.Where(x => (Math.Pow((x.X - boid.X), 2) + Math.Pow((x.Y - boid.Y), 2)) < distance * distance);
             // Average their locations
-            double averageX = neighbors.Sum(x => x.x) / neighbors.Count();
-            double averageY = neighbors.Sum(x => x.y) / neighbors.Count();
+            double averageX = neighbors.Sum(x => x.X) / neighbors.Count();
+            double averageY = neighbors.Sum(x => x.Y) / neighbors.Count();
             // Calculate the offsets
-            double centerOffsetX = averageX - boid.x;
-            double centerOffsetY = averageY - boid.y;
-            // find angle toward center
-            double angle = Math.Atan2(centerOffsetY, centerOffsetX);
+            double centerOffsetX = averageX - boid.X;
+            double centerOffsetY = averageY - boid.Y;
 
-            boid.rotate(angle * power);
+            boid.Xvel += centerOffsetX * power; boid.Yvel += centerOffsetY * power;
         }
 
         private void Align(Boid boid, double distance, double power) {
             // Get all neighbors that are within distance
-            var neighbors = boids.Where(x => (Math.Pow((x.x - boid.x), 2) + Math.Pow((x.y - boid.y), 2)) < distance * distance);
-            // Average their rotations
-            double averageAngle = neighbors.Sum(x => x.angle) / neighbors.Count();
-            // find difference in angle
-            double angleDiff = averageAngle - boid.angle;
-
-            boid.rotate(angleDiff * power);
+            var neighbors = boids.Where(x => (Math.Pow((x.X - boid.X), 2) + Math.Pow((x.Y - boid.Y), 2)) < distance * distance);
+            // Average their velocities
+            double averageXvel = neighbors.Sum(x => x.Xvel) / neighbors.Count();
+            double averageYvel = neighbors.Sum(x => x.Yvel) / neighbors.Count();
+            // Calculate the difference
+            double deltaXvel = averageXvel - boid.Xvel;
+            double deltaYvel = averageYvel - boid.Yvel;
+            
+            boid.Xvel += deltaXvel * power; boid.Yvel += deltaYvel * power;
         }
 
         private void Avoid(Boid boid, double distance, double power) {
             // Get all neighbors that are within distance
-            var neighbors = boids.Where(x => (Math.Pow((x.x - boid.x), 2) + Math.Pow((x.y - boid.y), 2)) < distance * distance);
+            var neighbors = boids.Where(x => (Math.Pow((x.X - boid.X), 2) + Math.Pow((x.Y - boid.Y), 2)) < distance * distance);
             double sumClosenessX = 0f;
             double sumClosenessY = 0f;
             foreach(Boid neighbor in neighbors) {
-                double closeness = distance - Math.Sqrt((Math.Pow((neighbor.x - boid.x), 2) + Math.Pow((neighbor.y - boid.y), 2)));
-                sumClosenessX += (boid.x - neighbor.x) * closeness;
-                sumClosenessY += (boid.y - neighbor.y) * closeness;
+                double closeness = distance - Math.Sqrt((Math.Pow((neighbor.X - boid.X), 2) + Math.Pow((neighbor.Y - boid.Y), 2)));
+                sumClosenessX += (boid.X - neighbor.X) * closeness;
+                sumClosenessY += (boid.Y - neighbor.Y) * closeness;
             }
-            // find angle toward center
-            double angle = Math.Atan2(sumClosenessX, sumClosenessY);
 
-            boid.rotate(angle * power);
+            boid.Xvel += sumClosenessX * power; boid.Yvel += sumClosenessY * power;
+        }
+
+        private void AvoidWalls(Boid boid, double power) {
+            // pad is 5% of the smalles dimention
+            double pad = 0.05 * Math.Min(Bounds.Width, Bounds.Height);
+
+            if(boid.X < pad) { // Off the left side of the screen
+                boid.Xvel += power;
+            }
+            if(boid.Y < pad) { // Off the top of the screen
+                boid.Yvel += power;
+            }
+            if(boid.X > Bounds.Width - pad) { // Off the right side of the screen
+                boid.Xvel -= power;
+            }
+            if(boid.Y > Bounds.Height - pad) { // Off the bottom of the screen
+                boid.Yvel -= power;
+            }
         }
 
         private void DrawBoid(Boid boid) {
             if(boid != null) {
-                double xoff = Math.Cos(boid.angle) * 20;
-                double yoff = Math.Sin(boid.angle) * 20;
+                double xoff = Math.Cos(boid.GetAngle()) * 20;
+                double yoff = Math.Sin(boid.GetAngle()) * 20;
 
-                drawLine(new Point((int)boid.x, (int)boid.y), new Point((int)(boid.x + xoff), (int)(boid.y + yoff)), Color.White);
+                drawLine(new Point((int)boid.X, (int)boid.Y), new Point((int)(boid.X + xoff), (int)(boid.Y + yoff)), Color.White);
             }
         }
 
@@ -241,15 +242,13 @@ namespace BoidScreensaver {
             float error = deltaX + deltaY;
 
             while (true) {
-                if(x0 < 0 || y0 < 0) {
-                    break;
+                if(!(x0 < 0 || y0 < 0 || x0 >= Bounds.Width || y0 >= Bounds.Height)) {
+                    bitmap.SetPixel(x0, y0, color);
                 }
-
-                if(!(x0 > Bounds.Width || y0 > Bounds.Height))
-                    bitmap.SetPixel(x0 % Bounds.Width, y0 % Bounds.Height, color);
 
                 if(x0 == x1 && y0 == y1)
                     break;
+
                 float e2 = 2 * error;
                 if (e2 >= deltaY) {
                     error += deltaY;
