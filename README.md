@@ -1,4 +1,4 @@
-# boid-screensaver
+# boid-screensaver-winform
  The goal of this project is to create a simple screensaver for Windows computers. 
  This is a simple <b>Microsoft Forms</b> application using <b>.NETv4.6.1</b>. 
  It uses the standard interface for Windows screensavers and should be compatible with all 
